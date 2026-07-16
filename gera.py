@@ -14,6 +14,7 @@ st.title("📸 Gerador de Frases no Muro")
 st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
 # FUNÇÃO PARA INSTALAR FONTE NO STREAMLIT CLOUD
+@st.cache_resource
 def instalar_fonte_noto():
     """Instala a fonte Noto Sans que suporta todos os acentos"""
     try:
@@ -30,6 +31,7 @@ if not os.path.exists("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"):
         instalar_fonte_noto()
 
 # FUNÇÃO MELHORADA PARA CARREGAR FONTE
+@st.cache_resource
 def carregar_fonte_melhor(font_size):
     """
     Carrega uma fonte que SABEMOS que funciona com acentos
@@ -41,7 +43,6 @@ def carregar_fonte_melhor(font_size):
         # Noto Sans (melhor para acentos)
         "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
         
         # DejaVu Sans (muito bom também)
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -96,7 +97,7 @@ with col1:
         "Tamanho da fonte (%)", 
         min_value=5, 
         max_value=20, 
-        value=10,  # Valor padrão maior
+        value=10,
         help="Aumente ou diminua o tamanho da fonte"
     )
 with col2:
@@ -113,7 +114,7 @@ if uploaded_image:
         draw = ImageDraw.Draw(img_edit)
 
         # Tamanho da fonte
-        font_size = int(W * (tamanho_fonte / 100))
+        font_size = max(10, int(W * (tamanho_fonte / 100)))  # Mínimo de 10px
         
         # Carrega a fonte (agora com teste de acentos)
         font = carregar_fonte_melhor(font_size)
@@ -122,22 +123,25 @@ if uploaded_image:
         st.info(f"📐 Fonte: {font_size}px | Imagem: {W}x{H}")
         
         # Testa se a fonte suporta acentos
+        font_supports_accents = False
         try:
             test = "áéíóú"
             font.getbbox(test)
             st.success("✅ Fonte com suporte a acentos")
+            font_supports_accents = True
         except:
             st.error("❌ Fonte SEM suporte a acentos!")            
             st.warning("⚠️ Os acentos podem não aparecer corretamente")
 
         # Divide o texto em linhas
         # Calcula o tamanho de cada caractere
+        char_width = font_size * 0.6  # Valor padrão
         try:
             sample = "A"
             bbox = font.getbbox(sample)
-            char_width = bbox[2] - bbox[0]
+            char_width = max(bbox[2] - bbox[0], font_size * 0.5)
         except:
-            char_width = font_size * 0.6
+            pass
         
         # Largura disponível (45% da imagem)
         largura_disponivel = int(W * 0.45)
@@ -145,6 +149,10 @@ if uploaded_image:
         
         # Quebra o texto
         lines = textwrap.wrap(text_input, width=caracteres_por_linha)
+        
+        # Se não quebrou, considera como uma linha
+        if not lines:
+            lines = [text_input]
 
         # Posicionamento
         muro_width = int(W * 0.45)
@@ -159,22 +167,34 @@ if uploaded_image:
         current_y = muro_center_y - (total_text_height // 2)
 
         # Converte cor para tupla RGB
-        cor_rgb = tuple(int(cor_texto[i:i+2], 16) for i in (1, 3, 5))
+        try:
+            cor_rgb = tuple(int(cor_texto[i:i+2], 16) for i in (1, 3, 5))
+        except:
+            cor_rgb = (0, 0, 0)  # Preto como fallback
 
         # Desenha cada linha
         for line in lines:
+            if not line.strip():  # Pula linhas vazias
+                current_y += linha_altura
+                continue
+                
             # Mede a largura da linha
+            text_w = len(line) * char_width
             try:
                 bbox = font.getbbox(line)
                 text_w = bbox[2] - bbox[0]
             except:
-                text_w = len(line) * char_width
+                pass
 
             # Centraliza
             text_x = margem_esquerda + ((muro_width - text_w) // 2)
 
             # Desenha o texto
-            draw.text((text_x, current_y), line, fill=cor_rgb, font=font)
+            try:
+                draw.text((text_x, current_y), line, fill=cor_rgb, font=font)
+            except Exception as e:
+                st.warning(f"Erro ao desenhar texto: {e}")
+            
             current_y += linha_altura
 
         # Exibe o resultado
