@@ -10,22 +10,28 @@ st.set_page_config(page_title="Gerador de Frases da Betty", layout="centered")
 st.title("📸 Gerador de Frases da Betty")
 st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
-# Função inteligente que busca a fonte Arial no Mac ou no Servidor Linux do GitHub
+# Função inteligente que busca o arquivo Roboto-Bold.ttf no repositório ou fontes do sistema
 @st.cache_data
 def carregar_fonte_sistema(font_size):
-    # Lista de caminhos comuns para fontes com suporte a acentos
+    # Caminho local no repositório
+    fonte_local = "Roboto-Bold.ttf"
+    
+    if os.path.exists(fonte_local):
+        return ImageFont.truetype(fonte_local, font_size)
+        
+    # Lista de caminhos comuns para fontes caso a fonte local não seja encontrada
     caminhos_fontes = [
-        "/Library/Fonts/Arial.ttf",              # Caminho no seu Mac
-        "/System/Library/Fonts/Supplemental/Arial.ttf", # Caminho alternativo no Mac
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Caminho no Linux (GitHub)
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" # Alternativa Linux
+        "/Library/Fonts/Arial.ttf",              # Mac
+        "/System/Library/Fonts/Supplemental/Arial.ttf", # Mac Alternativo
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Linux (GitHub/Streamlit)
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" # Linux Alternativo
     ]
     
     for caminho in caminhos_fontes:
         if os.path.exists(caminho):
             return ImageFont.truetype(caminho, font_size)
             
-    # Se rodar em algum ambiente sem essas fontes, usa a padrão redimensionada
+    # Se tudo falhar, usa a padrão (pode não ter suporte completo a acentos)
     return ImageFont.load_default(size=font_size)
 
 # Inputs do Usuário
@@ -91,4 +97,3 @@ if uploaded_image:
         )
     else:
         st.image(image, caption="Aguardando texto...", use_column_width=True)
-
