@@ -13,54 +13,69 @@ st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
 # Função melhorada para carregar fonte com suporte a acentos
 def carregar_fonte_correta(font_size):
-    # Encontra a pasta atual do script
-    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    
-    # PRIORIDADE: Tentar carregar a Roboto-Bold que você enviou
-    caminhos_roboto = [
-        os.path.join(diretorio_atual, "Roboto-Bold.ttf"),
-        os.path.join(diretorio_atual, "fonts", "Roboto-Bold.ttf"),
-        os.path.join(diretorio_atual, "Roboto-Regular.ttf"),
-        os.path.join(diretorio_atual, "fonts", "Roboto-Regular.ttf"),
-        "/mount/src/my_git/Roboto-Bold.ttf",
-        "/mount/src/my_git/fonts/Roboto-Bold.ttf",
-        "Roboto-Bold.ttf",
-        "fonts/Roboto-Bold.ttf"
-    ]
-    
-    for caminho in caminhos_roboto:
-        if os.path.exists(caminho):
-            try:
-                return ImageFont.truetype(caminho, font_size)
-            except Exception as e:
-                st.warning(f"Erro ao carregar {caminho}: {e}")
-                pass
-
-    # SEGUNDA OPÇÃO: Fontes do sistema com suporte a acentos
+    # PRIORIDADE 1: Fontes do sistema que SABEMOS que funcionam com acentos
     fontes_sistema = [
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        # Linux (Streamlit Cloud usa Ubuntu)
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",  # Mac - suporte a acentos
-        "/System/Library/Fonts/Helvetica.ttc",  # Mac
-        "C:\\Windows\\Fonts\\Arial.ttf",  # Windows
-        "C:\\Windows\\Fonts\\Arialbd.ttf",  # Windows Bold
-        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"  # Linux - ótimo para acentos
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        
+        # Mac
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        
+        # Windows
+        "C:\\Windows\\Fonts\\Arial.ttf",
+        "C:\\Windows\\Fonts\\Arialbd.ttf",
+        "C:\\Windows\\Fonts\\SegoeUI.ttf"
     ]
     
     for caminho in fontes_sistema:
         if os.path.exists(caminho):
             try:
-                return ImageFont.truetype(caminho, font_size)
+                font = ImageFont.truetype(caminho, font_size)
+                # Testa se a fonte suporta acentos
+                test_chars = "áéíóúãõç"
+                try:
+                    font.getbbox(test_chars)
+                    return font
+                except:
+                    pass
             except Exception:
                 pass
-                
-    # Fallback final - tenta qualquer fonte disponível
+
+    # PRIORIDADE 2: Tentar a Roboto se existir (mas agora com verificação)
+    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    caminhos_roboto = [
+        os.path.join(diretorio_atual, "Roboto-Bold.ttf"),
+        os.path.join(diretorio_atual, "fonts", "Roboto-Bold.ttf"),
+        "/mount/src/my_git/Roboto-Bold.ttf",
+        "Roboto-Bold.ttf"
+    ]
+    
+    for caminho in caminhos_roboto:
+        if os.path.exists(caminho):
+            try:
+                font = ImageFont.truetype(caminho, font_size)
+                # Testa acentos
+                test_chars = "áéíóúãõç"
+                try:
+                    font.getbbox(test_chars)
+                    return font
+                except:
+                    pass
+            except Exception as e:
+                # Ignora o erro e continua
+                pass
+
+    # PRIORIDADE 3: Fallback - DejaVu Sans (quase sempre funciona)
     try:
-        # Tenta DejaVu Sans que é muito bom com acentos
-        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
+        return font
     except:
-        # Último recurso - fonte padrão (pode não ter acentos)
+        # Último recurso
         return ImageFont.load_default()
 
 # Inputs do Usuário
@@ -71,9 +86,9 @@ text_input = st.text_input("Digite a mensagem para o muro (Máx. 100 caracteres)
 st.subheader("⚙️ Ajustes")
 tamanho_fonte = st.slider(
     "Tamanho da fonte (%)", 
-    min_value=3, 
-    max_value=10, 
-    value=7,  # Aumentei o valor padrão de 4.5 para 7
+    min_value=5, 
+    max_value=15, 
+    value=8,  # Aumentei mais ainda
     help="Aumente ou diminua o tamanho da fonte na imagem"
 )
 
@@ -87,51 +102,48 @@ if uploaded_image:
         img_edit = image.copy()
         draw = ImageDraw.Draw(img_edit)
 
-        # Tamanho da fonte agora é ajustável (padrão 7% da largura)
+        # Tamanho da fonte ajustável
         font_size = int(W * (tamanho_fonte / 100))
         
         # Mostra informações de debug
-        st.caption(f"Tamanho da fonte: {font_size}px | Largura da imagem: {W}px")
+        st.caption(f"📐 Tamanho da fonte: {font_size}px | Largura da imagem: {W}px")
         
         # Carrega a fonte
         font = carregar_fonte_correta(font_size)
         
-        # Verifica se a fonte suporta acentos (apenas para debug)
+        # Testa se a fonte suporta acentos
         try:
-            test_char = "áéíóúãõç"
-            font.getbbox(test_char)
+            test_text = "áéíóúãõç"
+            font.getbbox(test_text)
             st.success("✅ Fonte com suporte a acentos carregada!")
         except:
-            st.warning("⚠️ A fonte carregada pode não suportar acentos corretamente")
+            st.warning("⚠️ Fonte básica carregada (pode não mostrar acentos corretamente)")
 
-        # Quebra o texto em linhas - ajuste dinâmico
-        # Calcula quantos caracteres cabem em cada linha
+        # Calcula quantos caracteres cabem por linha
         try:
-            # Testa com um caractere médio
-            char_width = font.getbbox("A")[2] - font.getbbox("A")[0]
+            # Usa um caractere médio para calcular
+            sample_text = "A"
+            bbox = font.getbbox(sample_text)
+            char_width = bbox[2] - bbox[0]
         except:
             char_width = font_size * 0.6
         
-        # Largura disponível para texto (45% da imagem)
+        # Largura disponível para texto (50% da imagem para mais espaço)
         espaco_disponivel = int(W * 0.45)
         char_limit = max(8, int(espaco_disponivel / char_width))
         
-        # Quebra o texto
+        # Quebra o texto em linhas
         lines = textwrap.wrap(text_input, width=char_limit)
-        
-        # Se o texto não quebrou em múltiplas linhas, força uma quebra mais curta
-        if len(lines) == 1 and len(text_input) > char_limit:
-            lines = textwrap.wrap(text_input, width=char_limit - 3)
 
         # Define a área útil do muro
         muro_width = int(W * 0.45)
         margem_esquerda = int(W * 0.05)
         
         # Espaçamento vertical
-        linha_altura = int(font_size * 1.5)  # Aumentei o espaçamento
+        linha_altura = int(font_size * 1.6)  # Mais espaçamento
         total_text_height = len(lines) * linha_altura
         
-        # Centralização vertical no muro (60% da altura)
+        # Centralização vertical (55% da altura)
         muro_center_y = int(H * 0.55)
         current_y = muro_center_y - (total_text_height // 2)
 
@@ -171,9 +183,10 @@ if uploaded_image:
                 use_container_width=True
             )
         with col2:
-            # Mostra o texto que foi escrito
+            # Mostra informações do texto
             st.caption(f"📝 Texto: {text_input}")
             st.caption(f"📏 Linhas: {len(lines)}")
+            st.caption(f"🔤 Caracteres por linha: ~{char_limit}")
     else:
         st.image(image, caption="Aguardando texto...", use_container_width=True)
 else:
@@ -181,4 +194,4 @@ else:
 
 # Rodapé
 st.markdown("---")
-st.caption("App da Betty")
+st.caption("Feito com ❤️ para a Betty - Com acentos e fonte ajustável!")
