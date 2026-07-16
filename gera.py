@@ -6,46 +6,34 @@ import os
 # Configuração da página do Streamlit (Título da aba do navegador)
 st.set_page_config(page_title="Gerador de Frases da Betty", layout="centered")
 
-# Título principal do aplicativo (H1)
-st.title("📸 Gerador de Frases no Muro")
+# Título principal do aplicativo (H1) atualizado!
+st.title("📸 Gerador de Frases da Betty")
 st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
-# Função inteligente que monta o caminho correto para a fonte no servidor do Streamlit
+# Função inteligente que busca a fonte Arial no Mac ou no Servidor Linux do GitHub
+@st.cache_data
 def carregar_fonte_sistema(font_size):
-    # Encontra a pasta onde o gera.py está rodando no servidor
-    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    fonte_local = os.path.join(diretorio_atual, "Roboto-Bold.ttf")
-    
-    # Tenta carregar a fonte Roboto que você subiu no GitHub
-    if os.path.exists(fonte_local):
-        try:
-            return ImageFont.truetype(fonte_local, font_size)
-        except Exception:
-            pass
-            
-    # Lista de caminhos comuns para fontes caso a fonte local falhe
+    # Lista de caminhos comuns para fontes com suporte a acentos
     caminhos_fontes = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Linux (Padrão Streamlit com acentos)
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/Library/Fonts/Arial.ttf",              # Mac
-        "/System/Library/Fonts/Supplemental/Arial.ttf" # Mac Alternativo
+        "/Library/Fonts/Arial.ttf",              # Caminho no seu Mac
+        "/System/Library/Fonts/Supplemental/Arial.ttf", # Caminho alternativo no Mac
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", # Caminho no Linux (GitHub)
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" # Alternativa Linux
     ]
     
     for caminho in caminhos_fontes:
         if os.path.exists(caminho):
-            try:
-                return ImageFont.truetype(caminho, font_size)
-            except Exception:
-                continue
+            return ImageFont.truetype(caminho, font_size)
             
-    # Se absolutamente tudo falhar, usa a padrão básica do Pillow
-    return ImageFont.load_default()
+    # Se rodar em algum ambiente sem essas fontes, usa a padrão redimensionada
+    return ImageFont.load_default(size=font_size)
 
 # Inputs do Usuário
 uploaded_image = st.file_uploader("Suba a imagem de fundo", type=["jpg", "jpeg", "png"])
 text_input = st.text_input("Digite a mensagem para o muro (Máx. 100 caracteres):", max_chars=100)
 
 if uploaded_image:
+    # Sempre abre o arquivo do zero para evitar desenhar por cima de textos antigos
     image = Image.open(uploaded_image).convert("RGB")
     W, H = image.size
 
@@ -75,22 +63,19 @@ if uploaded_image:
         current_y = muro_center_y - (total_text_height // 2)
 
         for line in lines:
-            try:
-                left, top, right, bottom = font.getbbox(line)
-                text_w = right - left
-            except Exception:
-                # Fallback caso getbbox falhe com fontes padrão antigas
-                text_w = draw.textlength(line, font=font)
+            # Medição real da largura do texto usando a fonte do sistema
+            left, top, right, bottom = font.getbbox(line)
+            text_w = right - left
 
             # Centraliza a linha horizontalmente na área útil do muro
             text_x = margem_esquerda + ((muro_width - text_w) // 2)
 
-            # Desenha o texto
+            # Desenha o texto com acentos perfeitos
             draw.text((text_x, current_y), line, fill="black", font=font)
             current_y += linha_altura
 
         # Exibe o resultado final com o texto aplicado
-        st.image(img_edit, caption="Seu post está pronto!", use_container_width=True)
+        st.image(img_edit, caption="Seu post está pronto!", use_column_width=True)
 
         # Prepara a imagem para o botão de download
         import io
@@ -105,4 +90,4 @@ if uploaded_image:
             mime="image/jpeg"
         )
     else:
-        st.image(image, caption="Aguardando texto...", use_container_width=True)
+        st.image(image, caption="Aguardando texto...", use_column_width=True)
