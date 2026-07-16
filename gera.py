@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import os
+import io
 
 # Configuração da página do Streamlit
 st.set_page_config(page_title="Gerador de Frases da Betty", layout="centered")
@@ -12,14 +13,17 @@ st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
 # Função para carregar a fonte Roboto com suporte a acentos
 def carregar_fonte_correta(font_size):
-    # Encontra a pasta atual do script e tenta montar caminhos absolutos
+    # Encontra a pasta atual do script
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
     
-    # Lista de tentativas para carregar a Roboto-Bold que você enviou
+    # Lista de tentativas para carregar a Roboto-Bold
     caminhos_roboto = [
         os.path.join(diretorio_atual, "Roboto-Bold.ttf"),
-        "/mount/src/my_git/Roboto-Bold.ttf", # Caminho padrão do Streamlit Cloud
-        "Roboto-Bold.ttf"
+        os.path.join(diretorio_atual, "fonts", "Roboto-Bold.ttf"),
+        "/mount/src/my_git/Roboto-Bold.ttf",
+        "/mount/src/my_git/fonts/Roboto-Bold.ttf",
+        "Roboto-Bold.ttf",
+        "fonts/Roboto-Bold.ttf"
     ]
     
     for caminho in caminhos_roboto:
@@ -29,22 +33,28 @@ def carregar_fonte_correta(font_size):
             except Exception:
                 pass
 
-    # Se a Roboto falhar por algum motivo, tenta usar fontes do Linux que suportam acentos
-    fontes_sistema_com_acentos = [
+    # Se a Roboto falhar, tenta fontes do sistema
+    fontes_sistema = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",  # Mac
+        "C:\\Windows\\Fonts\\Arial.ttf",        # Windows
+        "C:\\Windows\\Fonts\\Arialbd.ttf"       # Windows Bold
     ]
     
-    for caminho in fontes_sistema_com_acentos:
+    for caminho in fontes_sistema:
         if os.path.exists(caminho):
             try:
                 return ImageFont.truetype(caminho, font_size)
             except Exception:
                 pass
                 
-    # Fallback final se tudo der errado (fonte padrão sem acentos)
-    return ImageFont.load_default()
+    # Fallback final
+    try:
+        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
+    except:
+        return ImageFont.load_default()
 
 # Inputs do Usuário
 uploaded_image = st.file_uploader("Suba a imagem de fundo", type=["jpg", "jpeg", "png"])
@@ -65,7 +75,9 @@ if uploaded_image:
         font = carregar_fonte_correta(font_size)
 
         # Quebra o texto em linhas curtas para caber no muro
-        lines = textwrap.wrap(text_input, width=18)
+        # Ajusta a largura das linhas baseado no tamanho da imagem
+        char_limit = max(12, int(W * 0.48 / (font_size * 0.6)))
+        lines = textwrap.wrap(text_input, width=char_limit)
 
         # Define a área útil do muro
         muro_width = int(W * 0.48)
@@ -80,12 +92,16 @@ if uploaded_image:
         current_y = muro_center_y - (total_text_height // 2)
 
         for line in lines:
-            # Mede as dimensões da linha de texto de forma segura
+            # Mede as dimensões da linha de texto
             try:
-                left, top, right, bottom = font.getbbox(line)
-                text_w = right - left
-            except Exception:
+                bbox = font.getbbox(line)
+                text_w = bbox[2] - bbox[0]
+            except AttributeError:
+                # Fallback para versões mais antigas do Pillow
                 text_w = draw.textlength(line, font=font)
+            except:
+                # Fallback genérico
+                text_w = len(line) * font_size * 0.6
 
             # Centraliza horizontalmente
             text_x = margem_esquerda + ((muro_width - text_w) // 2)
@@ -98,9 +114,8 @@ if uploaded_image:
         st.image(img_edit, caption="Seu post está pronto!", use_container_width=True)
 
         # Prepara a imagem para download
-        import io
         img_byte_arr = io.BytesIO()
-        img_edit.save(img_byte_arr, format='JPEG')
+        img_edit.save(img_byte_arr, format='JPEG', quality=95)
         img_byte_arr = img_byte_arr.getvalue()
 
         st.download_button(
@@ -111,3 +126,9 @@ if uploaded_image:
         )
     else:
         st.image(image, caption="Aguardando texto...", use_container_width=True)
+else:
+    st.info("👆 Faça upload de uma imagem para começar!")
+
+# Rodapé
+st.markdown("---")
+st.caption("App da Betty")
