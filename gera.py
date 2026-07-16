@@ -96,7 +96,7 @@ with col1:
         "Tamanho da fonte (%)", 
         min_value=5, 
         max_value=20, 
-        value=10,  # Valor padrão maior
+        value=30,  # Valor padrão maior
         help="Aumente ou diminua o tamanho da fonte"
     )
 with col2:
