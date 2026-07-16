@@ -207,4 +207,4 @@ else:
 
 # Rodapé
 st.markdown("---")
-st.caption("Feito com ❤️ para a Betty - Versão definitiva com acentos!")
+st.caption("App da Betty!")
