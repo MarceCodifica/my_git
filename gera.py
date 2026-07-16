@@ -6,15 +6,16 @@ import os
 # Configuração da página do Streamlit (Título da aba do navegador)
 st.set_page_config(page_title="Gerador de Frases da Betty", layout="centered")
 
-# Título principal do aplicativo (H1) atualizado!
+# Título principal do aplicativo (H1)
 st.title("📸 Gerador de Frases da Betty")
 st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
-# Função inteligente que busca o arquivo Roboto-Bold.ttf no repositório ou fontes do sistema
+# Função inteligente que monta o caminho correto para a fonte no servidor do Streamlit
 @st.cache_data
 def carregar_fonte_sistema(font_size):
-    # Caminho local no repositório
-    fonte_local = "Roboto-Bold.ttf"
+    # Encontra a pasta onde o gera.py está rodando no servidor
+    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    fonte_local = os.path.join(diretorio_atual, "Roboto-Bold.ttf")
     
     if os.path.exists(fonte_local):
         return ImageFont.truetype(fonte_local, font_size)
@@ -31,7 +32,7 @@ def carregar_fonte_sistema(font_size):
         if os.path.exists(caminho):
             return ImageFont.truetype(caminho, font_size)
             
-    # Se tudo falhar, usa a padrão (pode não ter suporte completo a acentos)
+    # Se tudo falhar, usa a padrão
     return ImageFont.load_default(size=font_size)
 
 # Inputs do Usuário
@@ -39,7 +40,6 @@ uploaded_image = st.file_uploader("Suba a imagem de fundo", type=["jpg", "jpeg",
 text_input = st.text_input("Digite a mensagem para o muro (Máx. 100 caracteres):", max_chars=100)
 
 if uploaded_image:
-    # Sempre abre o arquivo do zero para evitar desenhar por cima de textos antigos
     image = Image.open(uploaded_image).convert("RGB")
     W, H = image.size
 
@@ -69,14 +69,13 @@ if uploaded_image:
         current_y = muro_center_y - (total_text_height // 2)
 
         for line in lines:
-            # Medição real da largura do texto usando a fonte do sistema
             left, top, right, bottom = font.getbbox(line)
             text_w = right - left
 
             # Centraliza a linha horizontalmente na área útil do muro
             text_x = margem_esquerda + ((muro_width - text_w) // 2)
 
-            # Desenha o texto com acentos perfeitos
+            # Desenha o texto
             draw.text((text_x, current_y), line, fill="black", font=font)
             current_y += linha_altura
 
