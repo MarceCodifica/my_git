@@ -11,7 +11,7 @@ st.title("📸 Gerador de Frases da Betty")
 st.write("Suba a foto do muro, digite sua mensagem em português ou espanhol!")
 
 # Função inteligente que monta o caminho correto para a fonte no servidor do Streamlit
-@st.cache_data
+#@st.cache_data
 def carregar_fonte_sistema(font_size):
     # Encontra a pasta onde o gera.py está rodando no servidor
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
